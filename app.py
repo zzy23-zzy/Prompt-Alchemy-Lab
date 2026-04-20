@@ -74,7 +74,7 @@ if "input_cache" not in st.session_state:
 api_key = os.getenv("DEEPSEEK_API_KEY")
 client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com") if api_key else None
 
-# ======================= 【功能2】场景模板库 =======================
+# ======================= 场景模板库 =======================
 templates = {
     "请选择模板": "",
     "小红书爆款文案": "请帮我写一篇小红书风格的文案，主题清晰，有吸引力，带emoji，分段清晰，口语化强。",
@@ -85,7 +85,7 @@ templates = {
     "简历 bullet 优化": "请把这段经历改成专业简历 bullet，量化成果，动词开头。"
 }
 
-# ======================= 【功能5】角色预设库 =======================
+# ======================= 角色预设库 =======================
 roles = {
     "通用Prompt专家": "你是专业的Prompt工程师，擅长结构化、清晰化指令。",
     "产品经理": "你是资深产品经理，逻辑清晰，输出结构完整。",
@@ -136,18 +136,24 @@ col_input, col_result = st.columns([1, 1.2], gap="large")
 with col_input:
     st.markdown("### ⚒️ 投料锻造")
 
-    # ======================= 【新增】自定义场景模板 =======================
-    tpl = st.selectbox("📋 常用场景模板", options=list(templates.keys()) + ["✅ 自定义模板"])
+    # ---------------- 自定义场景模板（修复版） ----------------
+    tpl_options = list(templates.keys()) + ["✅ 自定义模板"]
+    tpl = st.selectbox("📋 常用场景模板", options=tpl_options)
+
+    # 自定义模板输入框
+    custom_template_content = ""
     if tpl == "✅ 自定义模板":
-        custom_template = st.text_area("输入你的自定义模板", placeholder="例如：请帮我生成一份专业推广文案...")
-        st.session_state.input_cache = custom_template
+        custom_template_content = st.text_area("输入你的自定义模板", placeholder="例如：请帮我生成一份专业推广文案...")
+        st.session_state.input_cache = custom_template_content
     else:
         if templates[tpl]:
             st.session_state.input_cache = templates[tpl]
 
-    # ======================= 【新增】自定义AI角色 =======================
+    # ---------------- 自定义AI角色（修复版） ----------------
     role_options = list(roles.keys()) + ["✅ 自定义角色"]
     selected_role = st.selectbox("👤 设定AI角色", options=role_options)
+
+    role_content = ""
     if selected_role == "✅ 自定义角色":
         custom_role = st.text_input("输入自定义角色", placeholder="例如：专业理财顾问、心理咨询师...")
         role_content = custom_role
@@ -166,21 +172,27 @@ with col_input:
     # 功能选项
     col1, col2 = st.columns(2)
     with col1:
-        # ======================= 【新增】自定义炼金流派 =======================
+        # ---------------- 自定义炼金流派（修复版） ----------------
         style_options = ["通用", "小红书", "学术", "代码", "职场", "✅ 自定义流派"]
         style_preset = st.selectbox("炼金流派", style_options)
+        
+        custom_style_content = ""
         if style_preset == "✅ 自定义流派":
-            custom_style = st.text_input("输入自定义流派", placeholder="例如：幽默搞笑、严肃正式、文艺温柔...")
-            style_preset = custom_style
+            custom_style_content = st.text_input("输入自定义流派", placeholder="例如：幽默搞笑、严肃正式、文艺温柔...")
+            final_style = custom_style_content
+        else:
+            final_style = style_preset
+
     with col2:
         mode = st.selectbox("输出模式", ["标准版", "三风格对比版", "中英双语版"])
 
-    # 【功能4】智能中英互译
+    # 智能中英互译
     translate_mode = st.selectbox("翻译模式", ["不翻译", "中文→英文Prompt", "英文→中文Prompt"])
 
-    # 【功能6】约束自动补全
+    # 约束自动补全
     auto_constraint = st.checkbox("自动补充约束（字数/格式/结构）")
 
+    # ---------------- 开始炼金 ----------------
     if st.button("🔥 开始炼金"):
         if not api_key:
             st.error("请配置API Key")
@@ -188,13 +200,15 @@ with col_input:
             st.warning("请输入需求内容")
         else:
             with st.spinner("炼金进行中..."):
-                # ====================== 系统提示词 ======================
+
+                # 系统提示词（完全正常、不奇怪）
                 sys = f"""
 你是专业Prompt工程师，只做一件事：将用户的白话需求，优化为【专业结构化Prompt】。
 绝对不要直接生成文案、代码、周报、脚本等最终内容！
 严格按 Role-Context-Task-Constraints 输出。
-角色：{selected_role}
-风格：{style_preset}
+
+角色：{role_content}
+风格：{final_style}
 """
                 if auto_constraint:
                     sys += "\n请自动补充合理的约束条件：字数、格式、输出结构、语气、禁止内容。"
@@ -207,7 +221,7 @@ with col_input:
                 if mode == "中英双语版":
                     sys += "\n输出：中文专业Prompt + 英文专业Prompt。"
 
-                # 调用DeepSeek API
+                # 调用API
                 resp = client.chat.completions.create(
                     model="deepseek-chat",
                     messages=[{"role": "system", "content": sys}, {"role": "user", "content": user_input}]
@@ -216,12 +230,12 @@ with col_input:
 
                 st.session_state.last_result = {
                     "optimized": res,
-                    "log": f"角色：{selected_role} | 风格：{style_preset} | 约束：{'自动补全' if auto_constraint else '无'}"
+                    "log": f"角色：{selected_role} | 风格：{final_style} | 约束：{'自动补全' if auto_constraint else '无'}"
                 }
 
                 st.session_state.history.append({
                     "time": datetime.now().strftime("%H:%M"),
-                    "style": style_preset,
+                    "style": final_style,
                     "raw": user_input,
                     "result": res,
                     "alias": ""
