@@ -1,5 +1,5 @@
 # ⚗️ Prompt Alchemy Lab | 赛博提示词炼金室
-
+![Demo Animation](assets/demo.gif)
 > **"一触即发，将混沌的思绪锻造成纯净的指令。"** > 本项目是一款基于 DeepSeek-V3 的工业级结构化提示词（Prompt）优化工具。
 
 ---
